@@ -1,0 +1,57 @@
+services:
+  fitgpt-ai:
+    image: fitgpt-ai:latest
+    container_name: fitgpt-ai
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - ADMIN_USER_IDS=${ADMIN_USER_IDS}
+        - AGGREGATE_LOGIN_APPID=${AGGREGATE_LOGIN_APPID}
+        - AGGREGATE_LOGIN_APPKEY=${AGGREGATE_LOGIN_APPKEY}
+        - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+        - NEXTAUTH_URL=${NEXTAUTH_URL}
+        - DB_PROVIDER=${DB_PROVIDER}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+        - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+        - DEFAULT_OPENAI_BASE_URL=${DEFAULT_OPENAI_BASE_URL}
+        - DEFAULT_OPENAI_API_KEY=${DEFAULT_OPENAI_API_KEY}
+        - KEY_ENCRYPTION_SECRE=${KEY_ENCRYPTION_SECRE}
+    
+    ports:
+      - "3000:3000"
+    
+    env_file:
+      - .env
+      
+    restart: unless-stopped
+    
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+          
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+      
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    networks:
+      - fitgpt-ai-net
+
+networks:
+  fitgpt-ai-net:
+    driver: bridge
