@@ -30,7 +30,7 @@ FitGPT 旨在通过一套直观而强大的工具赋能用户：
 
 ## 🚀 在线演示
 
-[**亲身体验 FitGPT**](https://fitgpt.wideseek.rocks)
+[**亲身体验 FitGPT**](https://fitgpt.wideseek.de)
 
 ## 🛠️ 技术栈
 
