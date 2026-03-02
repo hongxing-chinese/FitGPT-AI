@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { useChatAI } from '@/hooks/use-ai-service'
 import type { AIConfig } from '@/lib/types'
-import type { Message } from 'ai'
+import type { Message } from '@ai-sdk/react'
 
 export interface UseChatAIServiceOptions {
   aiConfig: AIConfig
