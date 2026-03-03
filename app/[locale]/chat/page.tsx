@@ -1342,7 +1342,15 @@ export default function ChatPage() {
           healthData: includeHealthData ? todayLog : undefined,
           recentHealthData: includeHealthData ? recentHealthData : undefined,
           systemPrompt: currentExpert.systemPrompt,
-          expertRole: currentExpert,
+          // 移除 icon 属性，因为 React 组件不能被 JSON 序列化
+          expertRole: {
+            id: currentExpert.id,
+            name: currentExpert.name,
+            title: currentExpert.title,
+            description: currentExpert.description,
+            color: currentExpert.color,
+            systemPrompt: currentExpert.systemPrompt,
+          },
           aiMemory: memories,
           aiConfig
         })
@@ -1500,9 +1508,10 @@ export default function ChatPage() {
     description: tChatExperts(`${expert.id}.description`) || expert.description
   })
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error, setMessages, setInput } = useChat({
+  const { messages, input = '', handleInputChange, handleSubmit, isLoading, error, setMessages, setInput } = useChat({
     api: "/api/openai/chat",
     initialMessages: [],
+    initialInput: '',
     headers: {
       "x-ai-config": JSON.stringify(aiConfig),
       "x-expert-role": selectedExpert,
@@ -1565,7 +1574,15 @@ export default function ChatPage() {
       healthData: includeHealthData ? todayLog : undefined,
       recentHealthData: includeHealthData ? recentHealthData : undefined,
       systemPrompt: currentExpert.systemPrompt,
-      expertRole: currentExpert,
+      // 移除 icon 属性，因为 React 组件不能被 JSON 序列化
+      expertRole: {
+        id: currentExpert.id,
+        name: currentExpert.name,
+        title: currentExpert.title,
+        description: currentExpert.description,
+        color: currentExpert.color,
+        systemPrompt: currentExpert.systemPrompt,
+      },
       aiMemory: memories, // 包含所有专家的记忆（只读其他专家，可写当前专家）
     },
   })
@@ -1627,10 +1644,10 @@ export default function ChatPage() {
     e.preventDefault()
 
     // 检查是否有内容（文本或图片）
-    if ((!input.trim() && uploadedImages.length === 0) || isAnyLoading) return
+    if ((!(input?.trim()) && uploadedImages.length === 0) || isAnyLoading) return
 
     console.log("Submitting chat message:", {
-      inputLength: input.length,
+      inputLength: input?.length || 0,
       imageCount: uploadedImages.length,
       hasAIConfig: isClient ? checkAIConfig() : false,
       includeHealthData,
@@ -1652,7 +1669,7 @@ export default function ChatPage() {
       await handleSubmitWithImages(e)
     } else {
       // 没有图片，使用原有的提交逻辑
-      handleSubmit(e)
+      handleSubmit?.(e)
     }
   }
 
@@ -1710,7 +1727,15 @@ export default function ChatPage() {
           healthData: includeHealthData ? todayLog : undefined,
           recentHealthData: includeHealthData ? recentHealthData : undefined,
           systemPrompt: currentExpert.systemPrompt,
-          expertRole: currentExpert,
+          // 移除 icon 属性，因为 React 组件不能被 JSON 序列化
+          expertRole: {
+            id: currentExpert.id,
+            name: currentExpert.name,
+            title: currentExpert.title,
+            description: currentExpert.description,
+            color: currentExpert.color,
+            systemPrompt: currentExpert.systemPrompt,
+          },
           aiMemory: memories,
           aiConfig
         })
@@ -2218,8 +2243,8 @@ export default function ChatPage() {
             <form onSubmit={onSubmit} className="space-y-3">
               <div className="flex space-x-2">
                 <Input
-                  value={input}
-                  onChange={handleInputChange}
+                  value={input || ''}
+                  onChange={handleInputChange || (() => {})}
                   placeholder={isClient && checkAIConfig() ? t('inputPlaceholder') : t('configureAI')}
                   disabled={isLoading || (isClient && !checkAIConfig())}
                   className={`flex-1 ${isMobile ? 'text-base h-9' : ''}`}
@@ -2245,7 +2270,7 @@ export default function ChatPage() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isAnyLoading || (!input.trim() && uploadedImages.length === 0) || (isClient && !checkAIConfig())}
+                  disabled={isAnyLoading || (!(input?.trim()) && uploadedImages.length === 0) || (isClient && !checkAIConfig())}
                   size={isMobile ? "sm" : "default"}
                   className={isMobile ? 'px-3 h-9 text-sm' : ''}
                 >
