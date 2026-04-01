@@ -6,6 +6,18 @@ import { getClientIP } from './lib/ip-utils';
 import { checkUserBan } from './lib/user-ban-middleware';
 import { checkRequestSize } from './lib/request-size-limiter';
 
+// 延迟获取 Supabase 客户端（避免构建时初始化）
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return null
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey)
+}
+
 // 简化的安全事件记录函数（避免循环依赖）
 async function logSecurityEvent(event: {
   ipAddress: string;
@@ -17,10 +29,8 @@ async function logSecurityEvent(event: {
   userId?: string; // 可选的用户ID
 }) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getSupabaseClient();
+    if (!supabase) return; // 构建时或环境变量未设置时跳过
 
     await supabase.from('security_events').insert({
       ip_address: event.ipAddress,
@@ -46,10 +56,8 @@ async function tryGetUserIdFromRequest(req: NextRequest): Promise<string | undef
     }
 
     const token = authHeader.substring(7);
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getSupabaseClient();
+    if (!supabase) return undefined; // 构建时或环境变量未设置时跳过
 
     const { data: { user }, error } = await supabase.auth.getUser(token);
     return user?.id;
@@ -100,14 +108,11 @@ function getRateLimitKey(ip: string, path: string): string {
   return `${ip}:${path}`;
 }
 
-// Supabase客户端（用于检查IP封禁）
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 async function checkIPBan(ip: string): Promise<boolean> {
   try {
+    const supabase = getSupabaseClient();
+    if (!supabase) return false; // 构建时或环境变量未设置时跳过
+
     const { data, error } = await supabase
       .rpc('is_ip_banned', { check_ip: ip });
 

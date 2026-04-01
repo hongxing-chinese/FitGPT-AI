@@ -31,6 +31,8 @@ export class UserBanManager {
   private static instance: UserBanManager;
   private bannedUsers = new Map<string, UserBanRecord>();
   private readonly CACHE_REFRESH_INTERVAL = 5 * 60 * 1000; // 5分钟刷新缓存
+  private initialized = false;
+  private refreshInterval: NodeJS.Timeout | null = null;
 
   // 自动封禁规则配置
   private readonly AUTO_BAN_RULES: UserBanRule[] = [
@@ -85,13 +87,28 @@ export class UserBanManager {
   ];
 
   constructor() {
+    // 不在构造函数中进行任何数据库操作
+    // 延迟初始化，避免构建时报错
+  }
+
+  /**
+   * 确保已初始化（延迟初始化）
+   * 只在首次实际使用时才初始化，避免构建时触发数据库操作
+   */
+  private ensureInitialized(): void {
+    if (this.initialized) return;
+
+    this.initialized = true;
+
     // 定期刷新缓存
-    setInterval(() => {
+    this.refreshInterval = setInterval(() => {
       this.refreshBanCache();
     }, this.CACHE_REFRESH_INTERVAL);
 
-    // 初始化时加载封禁列表
-    this.refreshBanCache();
+    // 初始化时加载封禁列表（异步，不阻塞）
+    this.refreshBanCache().catch(err => {
+      console.error('Failed to initialize user ban cache:', err);
+    });
   }
 
   static getInstance(): UserBanManager {
@@ -105,6 +122,8 @@ export class UserBanManager {
    * 检查用户是否被封禁
    */
   async isUserBanned(userId: string): Promise<boolean> {
+    this.ensureInitialized();
+
     // 首先检查缓存
     const cachedBan = this.bannedUsers.get(userId);
     if (cachedBan) {
@@ -166,6 +185,8 @@ export class UserBanManager {
     severity: 'low' | 'medium' | 'high' | 'critical' = 'medium',
     adminId?: string
   ): Promise<{ success: boolean; error?: string }> {
+    this.ensureInitialized();
+
     try {
       const now = new Date();
       const expiresAt = duration > 0 ? new Date(now.getTime() + duration * 60 * 1000) : null;
@@ -233,6 +254,8 @@ export class UserBanManager {
    */
   async checkAndAutoBan(userId: string): Promise<void> {
     if (!userId) return;
+
+    this.ensureInitialized();
 
     try {
       // 检查是否已经被封禁
@@ -347,6 +370,8 @@ export class UserBanManager {
    * 获取用户封禁详情
    */
   async getBanDetails(userId: string): Promise<{ success: boolean; data?: UserBanRecord; error?: string }> {
+    this.ensureInitialized();
+
     try {
       const { data: banRecord, error } = await supabaseAdmin
         .from('user_bans')
@@ -390,6 +415,8 @@ export class UserBanManager {
     total: number;
     error?: string;
   }> {
+    this.ensureInitialized();
+
     try {
       const offset = (page - 1) * limit;
 

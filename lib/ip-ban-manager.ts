@@ -31,6 +31,8 @@ export class IPBanManager {
   private static instance: IPBanManager;
   private bannedIPs = new Map<string, IPBanRecord>();
   private readonly CACHE_REFRESH_INTERVAL = 5 * 60 * 1000; // 5分钟刷新缓存
+  private initialized = false;
+  private refreshInterval: NodeJS.Timeout | null = null;
 
   // 自动封禁规则配置
   private readonly AUTO_BAN_RULES: BanRule[] = [
@@ -85,13 +87,28 @@ export class IPBanManager {
   ];
 
   constructor() {
+    // 不在构造函数中进行任何数据库操作
+    // 延迟初始化，避免构建时报错
+  }
+
+  /**
+   * 确保已初始化（延迟初始化）
+   * 只在首次实际使用时才初始化，避免构建时触发数据库操作
+   */
+  private ensureInitialized(): void {
+    if (this.initialized) return;
+
+    this.initialized = true;
+
     // 定期刷新缓存
-    setInterval(() => {
+    this.refreshInterval = setInterval(() => {
       this.refreshBanCache();
     }, this.CACHE_REFRESH_INTERVAL);
 
-    // 初始化时加载封禁列表
-    this.refreshBanCache();
+    // 初始化时加载封禁列表（异步，不阻塞）
+    this.refreshBanCache().catch(err => {
+      console.error('Failed to initialize ban cache:', err);
+    });
   }
 
   static getInstance(): IPBanManager {
@@ -105,6 +122,8 @@ export class IPBanManager {
    * 检查IP是否被封禁
    */
   async isIPBanned(ipAddress: string): Promise<boolean> {
+    this.ensureInitialized();
+
     // 首先检查缓存
     const cachedBan = this.bannedIPs.get(ipAddress);
     if (cachedBan) {
@@ -166,6 +185,8 @@ export class IPBanManager {
     severity: 'low' | 'medium' | 'high' | 'critical' = 'medium',
     adminId?: string
   ): Promise<{ success: boolean; error?: string }> {
+    this.ensureInitialized();
+
     try {
       const now = new Date();
       const expiresAt = duration > 0 ? new Date(now.getTime() + duration * 60 * 1000) : null;
@@ -231,6 +252,8 @@ export class IPBanManager {
    * 自动封禁IP（基于安全事件）
    */
   async checkAndAutoBan(ipAddress: string): Promise<void> {
+    this.ensureInitialized();
+
     try {
       // 检查是否已经被封禁
       if (await this.isIPBanned(ipAddress)) {
@@ -346,6 +369,8 @@ export class IPBanManager {
     total: number;
     error?: string;
   }> {
+    this.ensureInitialized();
+
     try {
       const offset = (page - 1) * limit;
 
@@ -451,6 +476,8 @@ export class IPBanManager {
     bySeverity: Record<string, number>;
     recentBans: number;
   }> {
+    this.ensureInitialized();
+
     try {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 

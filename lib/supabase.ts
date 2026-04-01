@@ -4,11 +4,44 @@ import { createClient } from '@supabase/supabase-js'
 let _supabase: any = null
 let _supabaseAdmin: any = null
 
+// 检查是否在构建时
+function isBuildTime(): boolean {
+  // 如果没有设置 Supabase URL，认为是构建时
+  const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL
+  const isProd = process.env.NODE_ENV === 'production'
+  const isVercelBuild = process.env.VERCEL && !process.env.VERCEL_ENV
+  const isNextBuild = process.env.NEXT_PHASE === 'phase-production-build'
+
+  const buildTime = !hasUrl || isVercelBuild || isNextBuild
+
+  if (buildTime) {
+    console.log('Build time detected:', {
+      hasUrl,
+      isProd,
+      isVercelBuild,
+      isNextBuild,
+      NODE_ENV: process.env.NODE_ENV
+    })
+  }
+
+  return buildTime
+}
+
 // 获取环境变量的函数
 function getSupabaseConfig() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  // 构建时返回占位配置，允许构建完成
+  if (isBuildTime()) {
+    console.log('Using placeholder Supabase config for build')
+    return {
+      supabaseUrl: 'https://build-placeholder.supabase.co',
+      supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder',
+      supabaseServiceKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder-service'
+    }
+  }
 
   // 调试信息 (仅在开发环境或预览环境显示)
   if (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV === 'preview') {

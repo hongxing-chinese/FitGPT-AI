@@ -4,13 +4,44 @@ import type { JWT } from "next-auth/jwt"
 import Credentials from "next-auth/providers/credentials"
 import { createClient } from "@supabase/supabase-js"
 
-// 初始化Supabase Admin客户端 - 用于绕过RLS限制
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+// 检查是否在构建时
+function isBuildTime(): boolean {
+  return !process.env.NEXT_PUBLIC_SUPABASE_URL
+}
+
+// 延迟初始化 Supabase Admin 客户端
+let _supabaseAdmin: ReturnType<typeof createClient> | null = null
+
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    // 构建时返回一个 mock 客户端
+    if (isBuildTime()) {
+      console.log('Build time: using mock Supabase admin client')
+      return {
+        from: () => ({
+          select: () => ({ single: async () => ({ data: null, error: 'Build time mock' }) }),
+          eq: () => ({ single: async () => ({ data: null, error: 'Build time mock' }) }),
+        }),
+      } as any
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    _supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  }
+  return _supabaseAdmin
+}
+
+// 使用 Proxy 实现延迟访问
+const supabaseAdmin = new Proxy({} as ReturnType<typeof createClient>, {
+  get(target, prop) {
+    const admin = getSupabaseAdmin()
+    return admin[prop as keyof typeof admin]
   }
 })
 
